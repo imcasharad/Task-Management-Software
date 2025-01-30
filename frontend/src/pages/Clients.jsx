@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
     Container, TextField, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-    Dialog, DialogActions, DialogContent, DialogTitle, Select, MenuItem, IconButton
+    Dialog, DialogActions, DialogContent, DialogTitle, Select, MenuItem, IconButton, 
+    FormControl, InputLabel  // ✅ Added FormControl & InputLabel
 } from "@mui/material";
+
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -15,35 +17,59 @@ const Clients = () => {
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [clientToDelete, setClientToDelete] = useState(null);
     const [categories, setCategories] = useState([]);
+    
     const [groups, setGroups] = useState([]);
     const [newClient, setNewClient] = useState({
         firstName: "", lastName: "", PAN: "", category: "", group: "", mobile: ""
     });
 
+    
     const fetchClients = () => {
+        let isMounted = true; // ✅ Ensures cleanup on unmount
+    
         axios.get("http://localhost:5000/api/clients")
             .then((res) => {
-                console.log("Fetched Clients:", res.data); // Debugging output
-                if (Array.isArray(res.data)) {
+                console.log("Fetched Clients:", res.data); // ✅ Debugging Output
+                if (isMounted && Array.isArray(res.data)) {
                     setClients(res.data);
                 } else {
                     console.error("Unexpected API response:", res.data);
                 }
             })
             .catch((err) => console.error("Error fetching clients:", err.message));
+    
+        return () => { isMounted = false; }; // ✅ Proper cleanup function
     };
+    
+    // ✅ Move Cleanup Inside useEffect
+    useEffect(() => {
+        const cleanup = fetchClients();
+        return cleanup; // ✅ Ensures cleanup
+    }, []);
+    
+    
     
 
     useEffect(() => {
-        fetchClients();
+        const cleanup = fetchClients();
+        fetchCategories();
+        fetchGroups();
+        return cleanup;  // ✅ Ensures cleanup on unmount
+    }, []);
+    
+    
+    const fetchCategories = () => {
         axios.get("http://localhost:5000/api/categories")
             .then((res) => setCategories(res.data))
             .catch((err) => console.error("Error fetching categories:", err.message));
+    };
     
-        axios.get("http://localhost:5000/api/groups") // Assuming there's a groups API
+    const fetchGroups = () => {
+        axios.get("http://localhost:5000/api/groups")
             .then((res) => setGroups(res.data))
             .catch((err) => console.error("Error fetching groups:", err.message));
-    }, []);
+    };
+    
     
     
     
@@ -135,14 +161,8 @@ const Clients = () => {
                             <TableCell>Actions</TableCell>
                         </TableRow>
                     </TableHead>
-                        <TableBody>
-                        {clients.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} align="center">
-                                    No clients found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
+                    <TableBody>
+                        {Array.isArray(clients) && clients.length > 0 && 
                             clients
                                 .filter(client => 
                                     client.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -150,34 +170,29 @@ const Clients = () => {
                                     client.mobile.includes(searchQuery)
                                 )
                                 .map(client => (
-
-                                <TableRow key={client._id}>
-                                    <TableCell>{client._id}</TableCell>
-                                    <TableCell>{client.firstName} {client.lastName}</TableCell>
-                                    <TableCell>{client.group}</TableCell>
-                                    <TableCell>{client.category}</TableCell>
-                                    <TableCell>{client.PAN}</TableCell>
-                                    <TableCell>{client.mobile}</TableCell>
-                                    <TableCell>
-                                        <IconButton color="primary" onClick={() => handleOpenDialog(client)}>
-                                            <EditIcon />
-                                        </IconButton>
-
-                                        <IconButton 
-                                            color="error" 
-                                            onClick={() => {
-                                                console.log(`Opening delete dialog for client ID: ${client._id}`); // ✅ Debugging Output
-                                                handleOpenDeleteDialog(client);
-                                            }}
-                                        >
-                                            <DeleteIcon />
-                                        </IconButton>
-
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
+                                    <TableRow key={client._id}>
+                                        <TableCell>{client._id}</TableCell>
+                                        <TableCell>{client.firstName} {client.lastName}</TableCell>
+                                        <TableCell>{client.group}</TableCell>
+                                        <TableCell>{client.category}</TableCell>
+                                        <TableCell>{client.PAN}</TableCell>
+                                        <TableCell>{client.mobile}</TableCell>
+                                        <TableCell>
+                                            <IconButton color="primary" onClick={() => handleOpenDialog(client)}>
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton 
+                                                color="error" 
+                                                onClick={() => handleOpenDeleteDialog(client)}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                        }
                     </TableBody>
+
                 </Table>
             </TableContainer>
 
@@ -207,17 +222,20 @@ const Clients = () => {
                         onChange={(e) => setNewClient({ ...newClient, PAN: e.target.value })}
                         style={{ marginBottom: 10 }}
                     />
-                    <Select
-                        fullWidth
-                        value={newClient.category}
-                        onChange={(e) => setNewClient({ ...newClient, category: e.target.value })}
-                        displayEmpty
-                    >
-                        <MenuItem value="" disabled>Select Category</MenuItem>
-                        {categories.map((cat) => (
-                            <MenuItem key={cat._id} value={cat.name}>{cat.name}</MenuItem>
-                        ))}
-                    </Select>
+                    <FormControl fullWidth>
+                        <InputLabel>Client Category</InputLabel>
+                        <Select
+                            value={newClient.category}
+                            onChange={(e) => setNewClient({ ...newClient, category: e.target.value })}
+                            displayEmpty
+                        >
+                            <MenuItem value="" disabled>Select a Category</MenuItem>
+                            {categories.map((cat) => (
+                                <MenuItem key={cat._id} value={cat.name}>{cat.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
 
                     <Select
                         fullWidth
