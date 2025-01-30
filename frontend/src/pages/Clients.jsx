@@ -223,7 +223,7 @@ const Clients = () => {
                         style={{ marginBottom: 10 }}
                     />
                     <FormControl fullWidth>
-                        <InputLabel>Client Category</InputLabel>
+                        <InputLabel shrink>Select a Category</InputLabel>  {/* ✅ Added 'shrink' prop */}
                         <Select
                             value={newClient.category}
                             onChange={(e) => setNewClient({ ...newClient, category: e.target.value })}
@@ -235,6 +235,7 @@ const Clients = () => {
                             ))}
                         </Select>
                     </FormControl>
+
 
 
                     <Select
