@@ -17,11 +17,28 @@ const Clients = () => {
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [clientToDelete, setClientToDelete] = useState(null);
     const [categories, setCategories] = useState([]);
+    const [groupCategories, setGroupCategories] = useState([]); // ✅ Fix: Define groupCategories
+
     
     const [groups, setGroups] = useState([]);
     const [newClient, setNewClient] = useState({
         firstName: "", lastName: "", PAN: "", category: "", group: "", mobile: ""
     });
+
+    const [openGroupDialog, setOpenGroupDialog] = useState(false);
+const [newGroup, setNewGroup] = useState({ name: "", category: "" });
+
+const handleAddGroup = () => {
+    axios.post("http://localhost:5000/api/groups", newGroup)
+        .then(() => {
+            fetchGroups();  // ✅ Refresh Groups List Immediately
+            setOpenGroupDialog(false);
+            setNewGroup({ name: "", category: "" });
+        })
+        .catch((err) => console.error("Error adding group:", err.message));
+};
+
+
 
     
     const fetchClients = () => {
@@ -42,27 +59,35 @@ const Clients = () => {
     };
     
     // ✅ Move Cleanup Inside useEffect
+    
     useEffect(() => {
-        const cleanup = fetchClients();
-        return cleanup; // ✅ Ensures cleanup
+        fetchClients();
+        fetchCategories();  // ✅ Fetch Categories and set `groupCategories`
+        fetchGroups();
     }, []);
     
     
     
 
     useEffect(() => {
-        const cleanup = fetchClients();
-        fetchCategories();
-        fetchGroups();
-        return cleanup;  // ✅ Ensures cleanup on unmount
+        axios.get("http://localhost:5000/api/groups")
+            .then((res) => setGroups(res.data))
+            .catch((err) => console.error("Error fetching groups:", err.message));
     }, []);
+    
     
     
     const fetchCategories = () => {
         axios.get("http://localhost:5000/api/categories")
-            .then((res) => setCategories(res.data))
-            .catch((err) => console.error("Error fetching categories:", err.message));
-    };
+          .then((res) => {
+            setCategories(res.data);
+            const groupCats = res.data.filter(cat => cat.type === "Group"); // FIX: Ensure correct uppercase "Group"
+            setGroupCategories(groupCats);
+          })
+          .catch((err) => console.error("Error fetching categories:", err.message));
+      };
+      
+    
     
     const fetchGroups = () => {
         axios.get("http://localhost:5000/api/groups")
@@ -225,30 +250,37 @@ const Clients = () => {
                     <FormControl fullWidth>
                         <InputLabel shrink>Select a Category</InputLabel>  {/* ✅ Added 'shrink' prop */}
                         <Select
-                            value={newClient.category}
-                            onChange={(e) => setNewClient({ ...newClient, category: e.target.value })}
+                        value={newClient.category}
+                        onChange={(e) => setNewClient({ ...newClient, category: e.target.value })}
+                        displayEmpty
+                        >
+                        <MenuItem value="" disabled>Select a Category</MenuItem>
+                        {categories
+                            .filter((cat) => cat.type === "Client") // FIX: Only show Client categories
+                            .map((cat) => (
+                            <MenuItem key={cat._id} value={cat.name}>{cat.name}</MenuItem>
+                            ))}
+                        </Select>
+
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                        <InputLabel>Select Group</InputLabel>
+                        <Select
+                            value={newClient.group}
+                            onChange={(e) => setNewClient({ ...newClient, group: e.target.value })}
                             displayEmpty
                         >
-                            <MenuItem value="" disabled>Select a Category</MenuItem>
-                            {categories.map((cat) => (
-                                <MenuItem key={cat._id} value={cat.name}>{cat.name}</MenuItem>
+                            <MenuItem value="" disabled>Select a Group</MenuItem>
+                            {groups.map((group) => (
+                                <MenuItem key={group._id} value={group.name}>{group.name}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
+                    <Button variant="text" color="primary" onClick={() => setOpenGroupDialog(true)}>
+                        + Add Group
+                    </Button>
 
-
-
-                    <Select
-                        fullWidth
-                        value={newClient.group}
-                        onChange={(e) => setNewClient({ ...newClient, group: e.target.value })}
-                        displayEmpty
-                        style={{ marginBottom: 10 }}
-                    >
-                        <MenuItem value="" disabled>Select Group</MenuItem>
-                        <MenuItem value="Retail">Retail</MenuItem>
-                        <MenuItem value="Corporate">Corporate</MenuItem>
-                    </Select>
                     <TextField 
                         label="Mobile" 
                         fullWidth 
@@ -281,6 +313,43 @@ const Clients = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Dialog open={openGroupDialog} onClose={() => setOpenGroupDialog(false)}>
+                <DialogTitle>Add New Group</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label="Group Name"
+                        fullWidth
+                        required
+                        value={newGroup.name}
+                        onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                        style={{ marginBottom: 10 }}
+                    />
+                    <FormControl fullWidth>
+                        <InputLabel>Group Category (Optional)</InputLabel>
+                        <Select
+                            value={newGroup.category}
+                            onChange={(e) => setNewGroup({ ...newGroup, category: e.target.value })}
+                            displayEmpty
+                        >
+                            <MenuItem value="">No Category</MenuItem>
+                            {groupCategories.length > 0 ? (
+                                groupCategories.map((cat) => (
+                                    <MenuItem key={cat._id} value={cat.name}>{cat.name}</MenuItem>
+                                ))
+                            ) : (
+                                <MenuItem disabled>No Group Categories Found</MenuItem>
+                            )}
+
+                        </Select>
+                    </FormControl>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenGroupDialog(false)}>Cancel</Button>
+                    <Button onClick={handleAddGroup} color="primary" variant="contained">Save</Button>
+                </DialogActions>
+            </Dialog>
+
 
 
         </Container>

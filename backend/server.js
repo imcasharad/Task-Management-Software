@@ -19,6 +19,10 @@ app.use("/api/clients", clientRoutes);
 const categoryRoutes = require("./routes/categoryRoutes");
 app.use("/api/categories", categoryRoutes);
 
+const groupRoutes = require("./routes/groups");
+app.use("/api/groups", groupRoutes);
+
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
